@@ -10,7 +10,7 @@ const port = process.env.PORT || 8000;
 app.use(cors());
 app.use(express.json());
 
-const uri = process.env.MONGODB_URI
+const uri = process.env.MONGODB_URI;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -47,11 +47,10 @@ async function run() {
         const lessons = await PublicLessonsCollection.find().limit(3);
         const result = await lessons.toArray();
         res.send(result);
-      }
-      catch (error) {
+      } catch (error) {
         res.status(500).send({ success: false, message: error.message });
       }
-    })
+    });
 
     //Public Lessons Single Dynamic-API
     app.get("/public-lessons/:id", async (req, res) => {
@@ -67,6 +66,72 @@ async function run() {
         res.send(lesson);
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    //Add Lesson API
+    app.post("/public-lessons", async (req, res) => {
+      try {
+        const lesson = req.body;
+
+        const result = await PublicLessonsCollection.insertOne(lesson);
+
+        res.status(201).send({
+          success: true,
+          message: "Lesson added successfully",
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    //Add Lesson Dynamic { ID } API
+    app.put("/public-lessons/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const updatedLesson = req.body;
+
+        const result = await PublicLessonsCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: updatedLesson,
+          },
+        );
+
+        res.send({
+          success: true,
+          result,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    //Add Lesson API Delete
+    app.delete("/public-lessons/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const result = await PublicLessonsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        res.send({
+          success: true,
+          result,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
       }
     });
 
