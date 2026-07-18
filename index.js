@@ -10,8 +10,7 @@ const port = process.env.PORT || 8000;
 app.use(cors());
 app.use(express.json());
 
-const uri =
-  "mongodb://assignment-10:dxDSXKs4yOeZDEWz@ac-s3wo6ow-shard-00-00.yij54yk.mongodb.net:27017,ac-s3wo6ow-shard-00-01.yij54yk.mongodb.net:27017,ac-s3wo6ow-shard-00-02.yij54yk.mongodb.net:27017/?ssl=true&replicaSet=atlas-udtgap-shard-0&authSource=admin&appName=Cluster0";
+const uri = process.env.MONGODB_URI
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -22,6 +21,7 @@ const client = new MongoClient(uri, {
 });
 
 let usersCollection; // ✅ global scope
+let PublicLessonsCollection;
 
 async function run() {
   try {
@@ -29,6 +29,46 @@ async function run() {
 
     const db = client.db("assignment-10");
     usersCollection = db.collection("users");
+    PublicLessonsCollection = db.collection("public_lessons");
+
+    //Public Lessons ALL-API
+    app.get("/public-lessons", async (req, res) => {
+      try {
+        const lessons = await PublicLessonsCollection.find().toArray();
+        res.send(lessons);
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    //Public Lessons Home Page
+    app.get("/publiclessons-home", async (req, res) => {
+      try {
+        const lessons = await PublicLessonsCollection.find().limit(3);
+        const result = await lessons.toArray();
+        res.send(result);
+      }
+      catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    })
+
+    //Public Lessons Single Dynamic-API
+    app.get("/public-lessons/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const lesson = await PublicLessonsCollection.findOne(query);
+        if (!lesson) {
+          return res
+            .status(404)
+            .send({ success: false, message: "Lesson not found" });
+        }
+        res.send(lesson);
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
 
     console.log("MongoDB connected");
   } catch (err) {
@@ -61,7 +101,7 @@ app.patch("/profile/update/:id", async (req, res) => {
 
     const result = await usersCollection.updateOne(
       { _id: new ObjectId(id) },
-      { $set: updateData }
+      { $set: updateData },
     );
 
     res.json({
