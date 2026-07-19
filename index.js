@@ -89,7 +89,7 @@ async function run() {
       }
     });
 
-    //Add Lesson Dynamic { ID } API
+    //Add Lesson Dynamic { ID } Edit API
     app.put("/public-lessons/:id", async (req, res) => {
       try {
         const id = req.params.id;
