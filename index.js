@@ -22,6 +22,8 @@ const client = new MongoClient(uri, {
 
 let usersCollection; // ✅ global scope
 let PublicLessonsCollection;
+let lessonLikesCollection;
+let lessonCommentsCollection;
 
 async function run() {
   try {
@@ -30,6 +32,8 @@ async function run() {
     const db = client.db("assignment-10");
     usersCollection = db.collection("users");
     PublicLessonsCollection = db.collection("public_lessons");
+    lessonLikesCollection = db.collection("lesson_likes");
+    lessonCommentsCollection = db.collection("lesson_comments");
 
     //Public Lessons ALL-API
     app.get("/public-lessons", async (req, res) => {
@@ -51,45 +55,43 @@ async function run() {
         res.status(500).send({ success: false, message: error.message });
       }
     });
-    
 
     //Public Lessons Single Dynamic-API
-app.get("/public-lessons/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
+    app.get("/public-lessons/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
 
-    let lesson;
+        let lesson;
 
-    // ObjectId দিয়ে try করবে
-    if (ObjectId.isValid(id)) {
-      lesson = await PublicLessonsCollection.findOne({
-        _id: new ObjectId(id),
-      });
-    }
+        // ObjectId দিয়ে try করবে
+        if (ObjectId.isValid(id)) {
+          lesson = await PublicLessonsCollection.findOne({
+            _id: new ObjectId(id),
+          });
+        }
 
-    // না পেলে string id দিয়ে try করবে
-    if (!lesson) {
-      lesson = await PublicLessonsCollection.findOne({
-        _id: id,
-      });
-    }
+        // না পেলে string id দিয়ে try করবে
+        if (!lesson) {
+          lesson = await PublicLessonsCollection.findOne({
+            _id: id,
+          });
+        }
 
-    if (!lesson) {
-      return res.status(404).send({
-        success: false,
-        message: "Lesson not found",
-      });
-    }
+        if (!lesson) {
+          return res.status(404).send({
+            success: false,
+            message: "Lesson not found",
+          });
+        }
 
-    res.send(lesson);
-
-  } catch (error) {
-    res.status(500).send({
-      success:false,
-      message:error.message
+        res.send(lesson);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
     });
-  }
-});
     //Add Lesson API
     app.post("/public-lessons", async (req, res) => {
       try {
@@ -161,6 +163,166 @@ app.get("/public-lessons/:id", async (req, res) => {
     console.log(err);
   }
 }
+
+//Like count er jonno API
+app.patch("/public-lessons/like/:id", async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const { userId, userName, userEmail } = req.body;
+
+    // আগে check করবে user like দিয়েছে কিনা
+    const alreadyLiked = await lessonLikesCollection.findOne({
+      lessonId,
+      userId,
+    });
+
+    if (alreadyLiked) {
+      return res.send({
+        success: false,
+        message: "Already liked",
+      });
+    }
+
+    // lesson_likes এ save করবে
+    await lessonLikesCollection.insertOne({
+      lessonId,
+      userId,
+      userName,
+      userEmail,
+      createdAt: new Date(),
+    });
+
+    // public_lessons এ likes +1 করবে
+    const result = await PublicLessonsCollection.updateOne(
+      {
+        _id: lessonId,
+      },
+      {
+        $inc: {
+          likes: 1,
+        },
+      },
+    );
+
+    console.log(result);
+
+    console.log(result);
+
+    res.send({
+      success: true,
+      message: "Liked successfully",
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+//Comment ADD Korar API
+app.post("/public-lessons/comment/:id", async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+
+    const {
+      userId,
+      userName,
+      userEmail,
+      comment,
+    } = req.body;
+
+    await lessonCommentsCollection.insertOne({
+      lessonId,
+      userId,
+      userName,
+      userEmail,
+      comment,
+      createdAt: new Date(),
+    });
+
+    await PublicLessonsCollection.updateOne(
+      {
+        _id: lessonId,
+      },
+      {
+        $inc: {
+          comments: 1,
+        },
+      }
+    );
+
+    res.send({
+      success: true,
+      message: "Comment added successfully",
+    });
+
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+
+app.get("/public-lessons/comments/:id", async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+
+    const comments = await lessonCommentsCollection
+      .find({ lessonId })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.send(comments);
+
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+//Sob Comment Anar API
+app.get("/public-lessons/comments/:id", async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+
+    const comments = await lessonCommentsCollection
+      .find({ lessonId })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.send(comments);
+
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+//TestimonialsSection Comment Show
+app.get("/public-comments", async (req, res) => {
+  try {
+    const comments = await lessonCommentsCollection
+      .find()
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .toArray();
+
+    res.send(comments);
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 
 run();
 
