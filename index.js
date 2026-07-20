@@ -51,24 +51,45 @@ async function run() {
         res.status(500).send({ success: false, message: error.message });
       }
     });
+    
 
     //Public Lessons Single Dynamic-API
-    app.get("/public-lessons/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const query = { _id: new ObjectId(id) };
-        const lesson = await PublicLessonsCollection.findOne(query);
-        if (!lesson) {
-          return res
-            .status(404)
-            .send({ success: false, message: "Lesson not found" });
-        }
-        res.send(lesson);
-      } catch (error) {
-        res.status(500).send({ success: false, message: error.message });
-      }
-    });
+app.get("/public-lessons/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
 
+    let lesson;
+
+    // ObjectId দিয়ে try করবে
+    if (ObjectId.isValid(id)) {
+      lesson = await PublicLessonsCollection.findOne({
+        _id: new ObjectId(id),
+      });
+    }
+
+    // না পেলে string id দিয়ে try করবে
+    if (!lesson) {
+      lesson = await PublicLessonsCollection.findOne({
+        _id: id,
+      });
+    }
+
+    if (!lesson) {
+      return res.status(404).send({
+        success: false,
+        message: "Lesson not found",
+      });
+    }
+
+    res.send(lesson);
+
+  } catch (error) {
+    res.status(500).send({
+      success:false,
+      message:error.message
+    });
+  }
+});
     //Add Lesson API
     app.post("/public-lessons", async (req, res) => {
       try {
