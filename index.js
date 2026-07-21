@@ -229,6 +229,7 @@ app.post("/public-lessons/comment/:id", async (req, res) => {
       userId,
       userName,
       userEmail,
+      userImage,
       comment,
     } = req.body;
 
@@ -237,6 +238,7 @@ app.post("/public-lessons/comment/:id", async (req, res) => {
       userId,
       userName,
       userEmail,
+      userImage,
       comment,
       createdAt: new Date(),
     });
@@ -266,6 +268,7 @@ app.post("/public-lessons/comment/:id", async (req, res) => {
 });
 
 
+//Comment GET Korar API
 app.get("/public-lessons/comments/:id", async (req, res) => {
   try {
     const lessonId = req.params.id;
@@ -305,13 +308,12 @@ app.get("/public-lessons/comments/:id", async (req, res) => {
   }
 });
 
-//TestimonialsSection Comment Show
+//Testimonials.jsx e 3ta Comment Show
 app.get("/public-comments", async (req, res) => {
   try {
     const comments = await lessonCommentsCollection
       .find()
       .sort({ createdAt: -1 })
-      .limit(3)
       .toArray();
 
     res.send(comments);
@@ -322,6 +324,7 @@ app.get("/public-comments", async (req, res) => {
     });
   }
 });
+
 
 
 run();
