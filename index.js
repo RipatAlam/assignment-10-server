@@ -325,6 +325,82 @@ app.get("/public-comments", async (req, res) => {
   }
 });
 
+//Comment delete er kaj
+app.delete("/public-lessons/comment/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    // আগে comment খুঁজে বের করো
+    const comment = await lessonCommentsCollection.findOne({
+      _id: new ObjectId(id),
+    });
+
+    if (!comment) {
+      return res.status(404).send({
+        success: false,
+        message: "Comment not found",
+      });
+    }
+
+    // comment delete
+    const result = await lessonCommentsCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    // lesson এর comment count কমাও
+    await PublicLessonsCollection.updateOne(
+      {
+        _id: new ObjectId(comment.lessonId),
+      },
+      {
+        $inc: {
+          comments: -1,
+        },
+      }
+    );
+
+    res.send({
+      success: true,
+      message: "Comment deleted successfully",
+      result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+//Comment Edit korar jonno
+app.put("/public-lessons/comment/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { comment } = req.body;
+
+    const result = await lessonCommentsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          comment,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    res.send({
+      success: true,
+      message: "Comment updated successfully",
+      result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 
 
 run();
