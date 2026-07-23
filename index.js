@@ -36,17 +36,33 @@ async function run() {
     lessonCommentsCollection = db.collection("lesson_comments");
 
     //Public Lessons ALL-API
+    // < 1 2 3 4 5 > Pagination page
     app.get("/public-lessons", async (req, res) => {
       try {
-        const lessons = await PublicLessonsCollection.find({
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 12;
+        const skip = (page - 1) * limit;
+
+        const query = {
           $or: [
             { status: "Approved" },
             { status: "Published" },
             { status: { $exists: false } },
           ],
-        }).toArray();
+        };
 
-        res.send(lessons);
+        const total = await PublicLessonsCollection.countDocuments(query);
+
+        const lessons = await PublicLessonsCollection.find(query)
+          .skip(skip)
+          .limit(limit)
+          .toArray();
+
+        res.send({
+          lessons,
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
+        });
       } catch (error) {
         res.status(500).send({
           success: false,
