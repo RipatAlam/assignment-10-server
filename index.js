@@ -38,21 +38,56 @@ async function run() {
     //Public Lessons ALL-API
     app.get("/public-lessons", async (req, res) => {
       try {
-        const lessons = await PublicLessonsCollection.find().toArray();
+        const lessons = await PublicLessonsCollection.find({
+          $or: [
+            { status: "Approved" },
+            { status: "Published" },
+            { status: { $exists: false } },
+          ],
+        }).toArray();
+
         res.send(lessons);
       } catch (error) {
-        res.status(500).send({ success: false, message: error.message });
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // Admin All Lessons
+    app.get("/admin/public-lessons", async (req, res) => {
+      try {
+        const lessons = await PublicLessonsCollection.find().toArray();
+
+        res.send(lessons);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
       }
     });
 
     //Public Lessons Home Page
     app.get("/publiclessons-home", async (req, res) => {
       try {
-        const lessons = await PublicLessonsCollection.find().limit(3);
-        const result = await lessons.toArray();
+        const result = await PublicLessonsCollection.find({
+          $or: [
+            { status: "Approved" },
+            { status: "Published" },
+            { status: { $exists: false } },
+          ],
+        })
+          .limit(3)
+          .toArray();
+
         res.send(result);
       } catch (error) {
-        res.status(500).send({ success: false, message: error.message });
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
       }
     });
 
@@ -92,10 +127,16 @@ async function run() {
         });
       }
     });
+
     //Add Lesson API
     app.post("/public-lessons", async (req, res) => {
       try {
-        const lesson = req.body;
+        const lesson = {
+          ...req.body,
+          status: "Pending",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
 
         const result = await PublicLessonsCollection.insertOne(lesson);
 
@@ -148,6 +189,100 @@ async function run() {
 
         res.send({
           success: true,
+          result,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // Approve Lesson API
+    app.patch("/public-lessons/approve/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        console.log("Approve ID:", id);
+
+        const result = await PublicLessonsCollection.updateOne(
+          {
+            _id: new ObjectId(id),
+          },
+          {
+            $set: {
+              status: "Approved",
+              updatedAt: new Date(),
+            },
+          },
+        );
+
+        console.log("Update Result:", result);
+
+        res.send({
+          success: true,
+          message: "Lesson approved successfully",
+          result,
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // Unapprove Lesson API
+    app.patch("/public-lessons/unapprove/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const result = await PublicLessonsCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              status: "Pending",
+              updatedAt: new Date(),
+            },
+          },
+        );
+
+        res.send({
+          success: true,
+          message: "Lesson unapproved successfully",
+          result,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // Publish Lesson API
+    app.patch("/public-lessons/publish/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const result = await PublicLessonsCollection.updateOne(
+          {
+            _id: new ObjectId(id),
+          },
+          {
+            $set: {
+              status: "Published",
+              updatedAt: new Date(),
+            },
+          },
+        );
+
+        res.send({
+          success: true,
+          message: "Lesson published successfully",
           result,
         });
       } catch (error) {
@@ -225,13 +360,7 @@ app.post("/public-lessons/comment/:id", async (req, res) => {
   try {
     const lessonId = req.params.id;
 
-    const {
-      userId,
-      userName,
-      userEmail,
-      userImage,
-      comment,
-    } = req.body;
+    const { userId, userName, userEmail, userImage, comment } = req.body;
 
     await lessonCommentsCollection.insertOne({
       lessonId,
@@ -251,14 +380,13 @@ app.post("/public-lessons/comment/:id", async (req, res) => {
         $inc: {
           comments: 1,
         },
-      }
+      },
     );
 
     res.send({
       success: true,
       message: "Comment added successfully",
     });
-
   } catch (error) {
     res.status(500).send({
       success: false,
@@ -266,7 +394,6 @@ app.post("/public-lessons/comment/:id", async (req, res) => {
     });
   }
 });
-
 
 //Comment GET Korar API
 app.get("/public-lessons/comments/:id", async (req, res) => {
@@ -279,7 +406,6 @@ app.get("/public-lessons/comments/:id", async (req, res) => {
       .toArray();
 
     res.send(comments);
-
   } catch (error) {
     res.status(500).send({
       success: false,
@@ -299,7 +425,6 @@ app.get("/public-lessons/comments/:id", async (req, res) => {
       .toArray();
 
     res.send(comments);
-
   } catch (error) {
     res.status(500).send({
       success: false,
@@ -356,7 +481,7 @@ app.delete("/public-lessons/comment/:id", async (req, res) => {
         $inc: {
           comments: -1,
         },
-      }
+      },
     );
 
     res.send({
@@ -385,7 +510,7 @@ app.put("/public-lessons/comment/:id", async (req, res) => {
           comment,
           updatedAt: new Date(),
         },
-      }
+      },
     );
 
     res.send({
@@ -401,8 +526,6 @@ app.put("/public-lessons/comment/:id", async (req, res) => {
   }
 });
 
-
-
 run();
 
 // test route
@@ -414,32 +537,41 @@ app.get("/", (req, res) => {
 app.patch("/profile/update/:id", async (req, res) => {
   try {
     const id = req.params.id;
-    const { name, email, image, password } = req.body;
+
+    const { name, email, image, password, profession, country, phone, bio } =
+      req.body;
 
     const updateData = {
       name,
       email,
       image,
+      profession,
+      country,
+      phone,
+      bio,
+      updatedAt: new Date(),
     };
 
-    if (password && password.length > 0) {
+    if (password?.trim()) {
       updateData.password = await bcrypt.hash(password, 10);
     }
 
-    const result = await usersCollection.updateOne(
+    const result = await userCollection.updateOne(
       { _id: new ObjectId(id) },
-      { $set: updateData },
+      {
+        $set: updateData,
+      },
     );
 
-    res.json({
+    res.send({
       success: true,
       message: "Profile updated successfully",
       result,
     });
   } catch (error) {
-    res.status(500).json({
+    res.status(500).send({
       success: false,
-      error: error.message,
+      message: error.message,
     });
   }
 });
